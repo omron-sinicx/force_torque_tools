@@ -216,7 +216,7 @@ public:
 	void init()
 	{
 		m_group = new moveit::planning_interface::MoveGroupInterface(m_moveit_group_name);
-		m_group->setPlannerId("RRTConnectkConfigDefault");
+		m_group->setPlannerId("RRTConnect");
 	}
 
 
@@ -276,9 +276,18 @@ public:
 
 
 		m_pose_counter++;
-		m_group->move();
-		ROS_INFO("Finished executing pose %d", m_pose_counter-1);
-		return true;
+		auto res = m_group->move();
+		if (res)
+		{
+			ROS_INFO("Finished executing pose %d", m_pose_counter-1);
+			return true;
+		}
+		else
+		{
+			ROS_ERROR("Failed executing pose %d", m_pose_counter-1);
+			return true;
+		
+		}
 	}
 
 	// gets the next pose from the parameter server
