@@ -233,12 +233,14 @@ public:
 		// and they should be float arrays of size 6
 		if(!m_random_poses)
 		{
-			if(!getPose("pose"+ss.str(), pose))
+			if (m_pose_counter > m_poses.size()-1)
 			{
 				ROS_INFO("Finished group %s poses", m_group->getName().c_str());
 				m_finished = true;
-				return true;
+				return false;
 			}
+
+			auto &pose = m_poses[m_pose_counter];
 
 			geometry_msgs::Pose pose_;
 			pose_.position.x = pose(0);
@@ -285,7 +287,7 @@ public:
 		else
 		{
 			ROS_ERROR("Failed executing pose %d", m_pose_counter-1);
-			return true;
+			return false;
 		
 		}
 	}
@@ -315,6 +317,43 @@ public:
 		for(unsigned int i=0; i<6; i++)
 			pose(i) = (double)PoseXmlRpc[i];
 
+		return true;
+	}
+
+	// gets the next pose from the parameter server
+	// pose in [x y z r p y] format ([m], [rad])
+	bool getPoses(const std::string &pose_param_name)
+	{
+		XmlRpc::XmlRpcValue posesXmlRpc;
+		if(n_.hasParam(pose_param_name))
+		{
+			n_.getParam(pose_param_name, posesXmlRpc);
+		}
+		else
+		{
+			ROS_WARN("Pose parameter %s not found", pose_param_name.c_str());
+			return false;
+		}
+
+		if(posesXmlRpc.getType() != XmlRpc::XmlRpcValue::TypeArray )
+		{
+    		ROS_ERROR("param 'poses' is not a list");
+			return false;
+ 		}
+
+		for( int i=0; i<posesXmlRpc.size(); ++i )
+		{
+			if (posesXmlRpc[i].getType() != XmlRpc::XmlRpcValue::TypeArray || posesXmlRpc[i].size() != 6)
+			{
+				ROS_ERROR("Pose is not a list or is of the wrong size (must be 6)");
+				return false;
+			}
+			Eigen::Matrix<double, 6, 1> pose;
+			for(unsigned int j=0; j<6; j++)
+				pose(j) = (double)posesXmlRpc[i][j];
+
+			m_poses.push_back(pose);
+		}
 		return true;
 	}
 
@@ -554,6 +593,9 @@ private:
 	// frame id of the poses to be executed
 	std::string m_poses_frame_id;
 
+	// User defined poses
+	std::vector<Eigen::Matrix<double, 6, 1>> m_poses;
+
 	// if the user wants to execute just random poses
 	// default: false
 	bool m_random_poses;
@@ -591,6 +633,8 @@ int main(int argc, char **argv)
 	unsigned int n_measurements = 0;
 
 	ros::Time t_end_move_arm = ros::Time::now();
+
+	ft_calib_node.getPoses("poses");
 
 	while (ft_calib_node.n_.ok() && !ft_calib_node.finished())
 	{
