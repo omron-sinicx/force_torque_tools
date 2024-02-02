@@ -75,6 +75,7 @@ public:
 
 		// subscribe to accelerometer topic and raw F/T sensor topic
 		topicSub_imu_ = n_.subscribe("imu", 1, &GravityCompensationNode::topicCallback_imu, this);
+		ros::Duration(0.1).sleep();
 		topicSub_ft_raw_ = n_.subscribe("ft_raw", 1, &GravityCompensationNode::topicCallback_ft_raw, this);
 
 		// bias calibration service
@@ -302,13 +303,18 @@ public:
 	void publish_gripper_com_tf()
 	{
 		static ros::Rate gripper_com_broadcast_rate(m_gripper_com_broadcast_frequency);
+		ros::Time last_time = ros::Time::now();
 		try
 		{
 			while(ros::ok())
 			{
-				tf::StampedTransform gripper_com = m_g_comp_params->getGripperCOM();
-				gripper_com.stamp_ = ros::Time::now();
-				tf_br_.sendTransform(gripper_com);
+				if (last_time != ros::Time::now())
+				{
+					tf::StampedTransform gripper_com = m_g_comp_params->getGripperCOM();
+					gripper_com.stamp_ = ros::Time::now();
+					tf_br_.sendTransform(gripper_com);
+					last_time = gripper_com.stamp_;
+				}
 
 				gripper_com_broadcast_rate.sleep();
 			}
