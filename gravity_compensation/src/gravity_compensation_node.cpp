@@ -41,6 +41,8 @@
 #include <tf_conversions/tf_eigen.h>
 #include <tf/transform_datatypes.h>
 #include <tf/transform_broadcaster.h>
+#include <geometry_msgs/TransformStamped.h>
+#include <tf2_ros/static_transform_broadcaster.h>
 #include <eigen_conversions/eigen_msg.h>
 #include <boost/thread.hpp>
 #include <std_srvs/Empty.h>
@@ -60,7 +62,6 @@ public:
 
     ros::ServiceServer calibrate_bias_srv_server_;
 
-	tf::TransformBroadcaster tf_br_;
 
 
 	GravityCompensationNode()
@@ -240,6 +241,15 @@ public:
 		m_g_comp_params->setGripperCOM(gripper_com);
 
 		m_g_comp = new GravityCompensation(m_g_comp_params);
+
+		static tf2_ros::StaticTransformBroadcaster tf_br_;
+		geometry_msgs::TransformStamped static_gripper_com;
+		static_gripper_com.header.stamp = ros::Time::now();
+		static_gripper_com.header.frame_id = gripper_com.frame_id_;
+		static_gripper_com.child_frame_id = gripper_com.child_frame_id_;
+		tf::transformTFToMsg(gripper_com, static_gripper_com.transform);
+		tf_br_.sendTransform(static_gripper_com);
+
 		return true;
 	}
 
@@ -299,33 +309,6 @@ public:
 		}
 	}
 
-	// thread function for publishing the gripper center of mass transform
-	void publish_gripper_com_tf()
-	{
-		static ros::Rate gripper_com_broadcast_rate(m_gripper_com_broadcast_frequency);
-		ros::Time last_time = ros::Time::now();
-		try
-		{
-			while(ros::ok())
-			{
-				if (last_time != ros::Time::now())
-				{
-					tf::StampedTransform gripper_com = m_g_comp_params->getGripperCOM();
-					gripper_com.stamp_ = ros::Time::now();
-					tf_br_.sendTransform(gripper_com);
-					last_time = gripper_com.stamp_;
-				}
-
-				gripper_com_broadcast_rate.sleep();
-			}
-		}
-
-		catch(boost::thread_interrupted&)
-		{
-			return;
-		}
-	}
-
     // only to be called when the robot is standing still and
     // while not holding anything / applying any forces
     bool calibrateBiasSrvCallback(std_srvs::Empty::Request &req,
@@ -361,25 +344,6 @@ int main(int argc, char **argv)
 		return 0;
 	}
 
-	// loop frequency
-	double loop_rate_;
-	g_comp_node.n_.param("loop_rate", loop_rate_, 1000.0);
-	ros::Rate loop_rate(loop_rate_);
-
-	// add a thread for publishing the gripper COM transform frame
-	boost::thread t_tf(boost::bind(&GravityCompensationNode::publish_gripper_com_tf, &g_comp_node));
-
-//	ros::AsyncSpinner s(2);
-//	s.start();
-
-	while(ros::ok())
-	{
-		ros::spinOnce();
-		loop_rate.sleep();
-	}
-
-	t_tf.join();
-
-
+	ros::spin();
 	return 0;
 }
