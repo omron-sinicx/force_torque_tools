@@ -265,15 +265,13 @@ public:
 
 		if(!m_received_imu)
 		{
-			ROS_ERROR("No Imu reading");
+			ROS_ERROR_THROTTLE(1, "No Imu reading");
 			return;
 		}
 
 		if((ros::Time::now()-m_imu.header.stamp).toSec() > 0.1)
 		{
-			error_msg_count++;
-			if(error_msg_count % 10==0)
-				ROS_ERROR("Imu reading too old, not able to g-compensate ft measurement");
+			ROS_ERROR_THROTTLE(1, "Imu reading too old, not able to g-compensate ft measurement");
 			return;
 		}
 

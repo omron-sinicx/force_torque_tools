@@ -88,8 +88,8 @@ bool GravityCompensation::Compensate(const geometry_msgs::WrenchStamped &ft_zero
 
     catch(tf::TransformException &ex)
     {
-        ROS_ERROR("Error transforming gravity vector to ft sensor frame...");
-        ROS_ERROR("%s.", ex.what());
+        ROS_ERROR_THROTTLE(1, "Error transforming gravity vector to ft sensor frame...");
+        ROS_ERROR_THROTTLE(1, "%s.", ex.what());
         return false;
     }
 
@@ -124,8 +124,8 @@ bool GravityCompensation::Compensate(const geometry_msgs::WrenchStamped &ft_zero
 
     catch(tf::TransformException &ex)
     {
-        ROS_ERROR("Error looking up transform between the gripper COM and the ft sensor frame");
-        ROS_ERROR("%s.", ex.what());
+        ROS_ERROR_THROTTLE(1, "Error looking up transform between the gripper COM and the ft sensor frame");
+        ROS_ERROR_THROTTLE(1, "%s.", ex.what());
         return false;
     }
 
