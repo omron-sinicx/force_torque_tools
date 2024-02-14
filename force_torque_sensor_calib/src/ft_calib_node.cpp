@@ -75,6 +75,7 @@ public:
 
 		m_pose_counter = 0;
 		m_ft_counter = 0;
+		m_pose_type = "cartesian";
 
 		m_received_ft = false;
 		m_received_imu = false;
@@ -83,6 +84,7 @@ public:
 		m_tf_listener = new tf::TransformListener();
 
 		m_ft_calib = new FTCalib();
+
 	}
 
 	~FTCalibNode()
@@ -172,8 +174,22 @@ public:
             return false;
         }
 
+		if(n_.hasParam("pose_type"))
+		{
+			n_.getParam("pose_type", m_pose_type);
+			if (m_pose_type != "cartesian" && m_pose_type != "joint")
+			{
+				ROS_ERROR("Invalid pose_type, only 'cartesian' and 'joint' are supported");
+				n_.shutdown();
+				return false;
+			}
+		}
+		else
+		{
+			ROS_WARN("No pose_type defined, expecting poses to be define as cartesian poses!");
+		}
 
-        // whether the user wants to use random poses
+		// whether the user wants to use random poses
         n_.param("random_poses", m_random_poses, false);
 
         // number of random poses
@@ -240,25 +256,34 @@ public:
 				return false;
 			}
 
+			m_group->clearPoseTargets();
+
 			auto &pose = m_poses[m_pose_counter];
 
-			geometry_msgs::Pose pose_;
-			pose_.position.x = pose(0);
-			pose_.position.y = pose(1);
-			pose_.position.z = pose(2);
+			if (m_pose_type == "cartesian")
+			{
+				geometry_msgs::Pose pose_;
+				pose_.position.x = pose(0);
+				pose_.position.y = pose(1);
+				pose_.position.z = pose(2);
 
-			tf::Quaternion q;
-			q.setRPY((double)pose(3), (double)pose(4), (double)pose(5));
+				tf::Quaternion q;
+				q.setRPY((double)pose(3), (double)pose(4), (double)pose(5));
 
-			tf::quaternionTFToMsg(q, pose_.orientation);
+				tf::quaternionTFToMsg(q, pose_.orientation);
 
-			geometry_msgs::PoseStamped pose_stamped;
-			pose_stamped.pose = pose_;
-			pose_stamped.header.frame_id = m_poses_frame_id;
-			pose_stamped.header.stamp = ros::Time::now();
+				geometry_msgs::PoseStamped pose_stamped;
+				pose_stamped.pose = pose_;
+				pose_stamped.header.frame_id = m_poses_frame_id;
+				pose_stamped.header.stamp = ros::Time::now();
 
-			m_group->setPoseTarget(pose_stamped);
-
+				m_group->setPoseTarget(pose_stamped);
+			}
+			else
+			{
+				std::vector<double> joint_config(pose.data(), pose.data() + pose.size());
+				m_group->setJointValueTarget(joint_config);
+			}
 		}
 		else // or execute random poses
 		{
@@ -592,6 +617,9 @@ private:
 
 	// frame id of the poses to be executed
 	std::string m_poses_frame_id;
+
+	// type of pose to set 'joint' or 'cartesian'
+	std::string m_pose_type;
 
 	// User defined poses
 	std::vector<Eigen::Matrix<double, 6, 1>> m_poses;
