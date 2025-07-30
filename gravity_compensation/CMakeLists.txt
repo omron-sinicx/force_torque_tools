@@ -14,6 +14,8 @@ catkin_package(
   LIBRARIES gravity_compensation
 )
 
+add_definitions(-std=c++17)
+
 include_directories(
   include
   ${catkin_INCLUDE_DIRS}

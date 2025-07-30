@@ -22,7 +22,7 @@ catkin_package(
   LIBRARIES
 )
 
-add_definitions(-std=c++11)
+add_definitions(-std=c++17)
 
 include_directories(
   include
